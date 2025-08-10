@@ -1,282 +1,276 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Labirinto com Vitória</title>
-  <style>
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #eee;
-    }
-    canvas {
-      background-color: #fff;
-      border: 2px solid #000;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Labirinto com Movimento Suave</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #eee;
+    font-family: sans-serif;
+    position: relative;
+  }
+  canvas {
+    background-color: #fff;
+    border: 2px solid #000;
+    display: block;
+  }
+  #message {
+    position: absolute;
+    top: 20px;
+    font-size: 1.5rem;
+    background: rgba(255,255,255,0.9);
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid #000;
+    display: none;
+  }
+</style>
 </head>
 <body>
-  <canvas id="game"></canvas>
+<canvas id="game"></canvas>
+<div id="message"></div>
 
-  <script>
-    // --------------------------
-    // 1. Labirinto (1 = parede, 0 = caminho livre, 2 = saída)
-    // --------------------------
-    const maze = [
-      [1,1,1,1,1,1,1,1,1,1,1,1],
-      [1,0,0,0,1,0,0,0,0,0,0,1],
-      [1,0,1,0,1,0,1,1,1,1,0,1],
-      [1,0,1,0,0,0,0,0,0,1,0,1],
-      [1,0,1,1,1,1,1,1,0,1,0,1],
-      [1,0,0,0,0,0,0,1,0,1,0,1],
-      [1,1,1,1,1,1,0,1,0,1,0,1],
-      [1,0,0,0,0,1,0,0,0,1,0,1],
-      [1,0,1,1,0,1,1,1,0,1,0,1],
-      [1,0,0,1,0,0,0,1,0,0,0,2], // saída (2) no canto direito
-      [1,1,0,1,1,1,0,1,1,1,1,1],
-      [1,1,1,1,1,1,1,1,1,1,1,1]
+<script>
+const maze = [
+  [0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0],
+  [1,0,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1,0,1,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+  [0,1,1,1,0,1,1,1,1,0,1,1,1,0,1,1,1,1,1,0],
+  [0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0],
+  [0,1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0],
+  [0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0],
+  [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
+  [1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0],
+
+  [0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0],
+  [1,0,1,0,1,1,0,1,0,0,0,1,0,1,1,0,1,0,1,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+  [0,1,1,1,0,1,1,1,1,0,1,1,1,0,1,1,1,1,1,0],
+  [0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0],
+  [0,1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0],
+  [0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0],
+  [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0]
+];
+
+const rows = maze.length;
+const cols = maze[0].length;
+const cellSize = 30;
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = cols * cellSize;
+canvas.height = rows * cellSize;
+
+let gameEnded = false;
+
+let player = {
+  row: 0,
+  col: 0,
+  x: 0,
+  y: 0,
+  speed: 6, 
+  moving: false,
+  targetRow: 0,
+  targetCol: 0
+};
+
+let enemy = {
+  row: rows - 1,
+  col: 0,
+  x: 0,
+  y: (rows - 1) * cellSize,
+  speed: 4,
+  moving: false,
+  targetRow: rows - 1,
+  targetCol: 0
+};
+
+let enemyPath = [];
+let lastPlayerPos = { row: player.row, col: player.col };
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for(let r = 0; r < rows; r++) {
+    for(let c = 0; c < cols; c++) {
+      ctx.fillStyle = maze[r][c] === 1 ? '#000' : '#fff';
+      ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+    }
+  }
+
+  ctx.fillStyle = 'green';
+  ctx.fillRect(exit.col * cellSize, exit.row * cellSize, cellSize, cellSize);
+
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(player.x, player.y, cellSize, cellSize);
+
+  ctx.fillStyle = 'red';
+  ctx.fillRect(enemy.x, enemy.y, cellSize, cellSize);
+}
+
+function findPathBFS(start, end) {
+  const queue = [start];
+  const visited = new Set();
+  const cameFrom = {};
+  const key = p => `${p.row},${p.col}`;
+  visited.add(key(start));
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current.row === end.row && current.col === end.col) {
+      const path = [];
+      let temp = current;
+      while (cameFrom[key(temp)]) {
+        path.unshift(temp);
+        temp = cameFrom[key(temp)];
+      }
+      return path;
+    }
+    const neighbors = [
+      {row: current.row-1, col: current.col},
+      {row: current.row+1, col: current.col},
+      {row: current.row, col: current.col-1},
+      {row: current.row, col: current.col+1}
     ];
-
-    // --------------------------
-    // 2. Canvas e variáveis
-    // --------------------------
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-
-    const rows = maze.length;
-    const cols = maze[0].length;
-
-    const canvasSize = 500;
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-
-    const cellSize = canvasSize / cols;
-
-    // --------------------------
-    // 3. Player
-    // --------------------------
-    let player = { row: 1, col: 1 };
-
-    function drawPlayer() {
-      ctx.fillStyle = 'blue';
-      ctx.fillRect(
-        player.col * cellSize + 2, 
-        player.row * cellSize + 2, 
-        cellSize - 4, 
-        cellSize - 4
-      );
-    }
-
-    // --------------------------
-    // 4. Inimigo
-    // --------------------------
-    let enemy = { row: 1, col: 10 };
-    let playerMoved = false;
-    let enemyPath = [];
-    let lastPlayerPosition = { row: player.row, col: player.col };
-
-    function drawEnemy() {
-      ctx.fillStyle = 'red';
-      ctx.fillRect(
-        enemy.col * cellSize + 2, 
-        enemy.row * cellSize + 2, 
-        cellSize - 4, 
-        cellSize - 4
-      );
-    }
-
-    // Algoritmo A* simplificado para encontrar caminho
-    function findPath(start, end) {
-      const openSet = [start];
-      const cameFrom = {};
-      const gScore = {};
-      const fScore = {};
-      
-      const key = pos => `${pos.row},${pos.col}`;
-      gScore[key(start)] = 0;
-      fScore[key(start)] = heuristic(start, end);
-      
-      while (openSet.length > 0) {
-        // Ordena pelo menor fScore
-        openSet.sort((a, b) => (fScore[key(a)] || Infinity) - (fScore[key(b)] || Infinity));
-        const current = openSet.shift();
-        
-        if (current.row === end.row && current.col === end.col) {
-          // Reconstruir o caminho
-          const path = [current];
-          while (cameFrom[key(path[0])]) {
-            path.unshift(cameFrom[key(path[0])]);
-          }
-          return path.slice(1); // Remove a posição atual
-        }
-        
-        const neighbors = [
-          {row: current.row - 1, col: current.col},
-          {row: current.row + 1, col: current.col},
-          {row: current.row, col: current.col - 1},
-          {row: current.row, col: current.col + 1}
-        ].filter(pos => 
-          pos.row >= 0 && pos.row < rows &&
-          pos.col >= 0 && pos.col < cols &&
-          maze[pos.row][pos.col] !== 1
-        );
-        
-        for (const neighbor of neighbors) {
-          const tentativeGScore = (gScore[key(current)] || 0) + 1;
-          if (tentativeGScore < (gScore[key(neighbor)] || Infinity)) {
-            cameFrom[key(neighbor)] = current;
-            gScore[key(neighbor)] = tentativeGScore;
-            fScore[key(neighbor)] = gScore[key(neighbor)] + heuristic(neighbor, end);
-            if (!openSet.some(p => p.row === neighbor.row && p.col === neighbor.col)) {
-              openSet.push(neighbor);
-            }
-          }
-        }
-      }
-      
-      return []; // Nenhum caminho encontrado
-    }
-    
-    function heuristic(a, b) {
-      // Distância de Manhattan
-      return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
-    }
-
-    function moveEnemy() {
-      // Só recalcula o caminho se o player se moveu
-      if (player.row !== lastPlayerPosition.row || player.col !== lastPlayerPosition.col) {
-        enemyPath = findPath(enemy, player);
-        lastPlayerPosition = { row: player.row, col: player.col };
-      }
-      
-      if (enemyPath.length > 0) {
-        // Move para o próximo passo no caminho
-        const nextStep = enemyPath[0];
-        enemy.row = nextStep.row;
-        enemy.col = nextStep.col;
-        enemyPath.shift();
-      } else {
-        // Se não há caminho, tenta se aproximar
-        const directions = [
-          {row: enemy.row - 1, col: enemy.col},
-          {row: enemy.row + 1, col: enemy.col},
-          {row: enemy.row, col: enemy.col - 1},
-          {row: enemy.row, col: enemy.col + 1}
-        ].filter(pos =>
-          pos.row >= 0 && pos.row < rows &&
-          pos.col >= 0 && pos.col < cols &&
-          maze[pos.row][pos.col] !== 1
-        );
-        
-        if (directions.length > 0) {
-          // Escolhe a direção que mais aproxima do player
-          directions.sort((a, b) => 
-            heuristic(a, player) - heuristic(b, player)
-          );
-          enemy.row = directions[0].row;
-          enemy.col = directions[0].col;
-        }
+    for(const n of neighbors) {
+      if (
+        n.row >= 0 && n.row < rows &&
+        n.col >= 0 && n.col < cols &&
+        maze[n.row][n.col] !== 1 &&
+        !visited.has(key(n))
+      ) {
+        visited.add(key(n));
+        cameFrom[key(n)] = current;
+        queue.push(n);
       }
     }
+  }
+  return [];
+}
 
-    // --------------------------
-    // 5. Labirinto
-    // --------------------------
-    function drawMaze() {
-      for(let row = 0; row < rows; row++) {
-        for(let col = 0; col < cols; col++) {
-          if(maze[row][col] === 1) {
-            ctx.fillStyle = 'black'; // parede
-          } else if(maze[row][col] === 2) {
-            ctx.fillStyle = 'green'; // saída
-          } else {
-            ctx.fillStyle = 'white'; // caminho
-          }
-          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-          ctx.strokeStyle = 'gray';
-          ctx.strokeRect(col * cellSize, row * cellSize, cellSize, cellSize);
-        }
-      }
-    }
+function updateEnemyPath() {
+  if(player.row !== lastPlayerPos.row || player.col !== lastPlayerPos.col) {
+    enemyPath = findPathBFS(enemy, player);
+    lastPlayerPos = {row: player.row, col: player.col};
+  }
+}
 
-    // --------------------------
-    // 6. Game Loop (desenha tudo)
-    // --------------------------
-    function draw() {
-      drawMaze();
-      drawPlayer();
-      drawEnemy();
-    }
+function moveEntity(entity) {
+  if(!entity.moving) return;
 
-    // --------------------------
-    // 7. Movimentação do Player
-    // --------------------------
-    window.addEventListener('keydown', function(e) {
-      let newRow = player.row;
-      let newCol = player.col;
+  const targetX = entity.targetCol * cellSize;
+  const targetY = entity.targetRow * cellSize;
 
-      if(e.key === 'w' || e.key === 'ArrowUp') newRow--;
-      else if(e.key === 's' || e.key === 'ArrowDown') newRow++;
-      else if(e.key === 'a' || e.key === 'ArrowLeft') newCol--;
-      else if(e.key === 'd' || e.key === 'ArrowRight') newCol++;
-      else return;
+  const dx = targetX - entity.x;
+  const dy = targetY - entity.y;
 
-      if(newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
-        if(maze[newRow][newCol] !== 1) { // pode andar em 0 (caminho) ou 2 (saída)
-          player.row = newRow;
-          player.col = newCol;
-          if(!playerMoved) playerMoved = true;
-          checkVictory();
-          draw();
-        }
-      }
-    });
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if(dist < entity.speed) {
+    entity.x = targetX;
+    entity.y = targetY;
+    entity.row = entity.targetRow;
+    entity.col = entity.targetCol;
+    entity.moving = false;
+  } else {
+    entity.x += entity.speed * dx / dist;
+    entity.y += entity.speed * dy / dist;
+  }
+}
 
-    // --------------------------
-    // 8. Condições de vitória e derrota
-    // --------------------------
-    function checkGameOver() {
-      if(player.row === enemy.row && player.col === enemy.col) {
-        alert('Game Over! O inimigo te pegou.');
-        resetGame();
-      }
-    }
+function checkGameOver() {
+  if (!gameEnded && player.row === enemy.row && player.col === enemy.col) {
+    gameEnded = true;
+    showMessage("💀 Game Over!");
+  }
+}
 
-    function checkVictory() {
-      if(maze[player.row][player.col] === 2) {
-        alert('Você venceu!');
-        resetGame();
-      }
-    }
+function checkVictory() {
+  if (!gameEnded && player.row === exit.row && player.col === exit.col) {
+    gameEnded = true;
+    showMessage("🏆 Você venceu!");
+  }
+}
 
-    function resetGame() {
-      player = { row: 1, col: 1 };
-      enemy = { row: 1, col: 10 };
-      playerMoved = false;
-      enemyPath = [];
-      lastPlayerPosition = { row: player.row, col: player.col };
-      draw();
-    }
+function showMessage(text) {
+  const msg = document.getElementById('message');
+  msg.textContent = text;
+  msg.style.display = 'block';
+}
 
-    // --------------------------
-    // 9. Movimento do inimigo automático
-    // --------------------------
-    setInterval(() => {
-      if(playerMoved) {
-        moveEnemy();
-        draw();
-        checkGameOver();
-      }
-    }, 300); // Velocidade um pouco mais rápida
+document.addEventListener('keydown', e => {
+  if(gameEnded) return;
+  if(player.moving) return; 
 
-    // --------------------------
-    // 10. Inicialização
-    // --------------------------
+  let newRow = player.row;
+  let newCol = player.col;
+
+  if(e.key === 'ArrowUp') newRow--;
+  else if(e.key === 'ArrowDown') newRow++;
+  else if(e.key === 'ArrowLeft') newCol--;
+  else if(e.key === 'ArrowRight') newCol++;
+  else return;
+
+  if(newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols && maze[newRow][newCol] !== 1) {
+    player.targetRow = newRow;
+    player.targetCol = newCol;
+    player.moving = true;
+  }
+});
+
+function enemyFollowPath() {
+  if(enemy.moving) return;
+
+  if(enemyPath.length === 0) return;
+
+  const next = enemyPath.shift();
+  enemy.targetRow = next.row;
+  enemy.targetCol = next.col;
+  enemy.moving = true;
+}
+
+function gameLoop() {
+  if(gameEnded) {
     draw();
-  </script>
+    return;
+  }
+
+  moveEntity(player);
+  moveEntity(enemy);
+
+  if(!player.moving) {
+    checkVictory();
+    checkGameOver();
+  }
+
+  if(!enemy.moving) {
+    updateEnemyPath();
+    enemyFollowPath();
+  }
+
+  draw();
+
+  requestAnimationFrame(gameLoop);
+}
+
+player.x = player.col * cellSize;
+player.y = player.row * cellSize;
+enemy.x = enemy.col * cellSize;
+enemy.y = enemy.row * cellSize;
+
+const exit = { row: rows -1, col: cols -1 };
+
+updateEnemyPath();
+gameLoop();
+
+</script>
 </body>
 </html>
