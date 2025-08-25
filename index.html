@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Labirinto com Movimento Suave</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #eee;
+    font-family: sans-serif;
+    position: relative;
+  }
+  canvas {
+    background-color: #fff;
+    border: 2px solid #000;
+    display: block;
+  }
+  #message {
+    position: absolute;
+    top: 20px;
+    font-size: 1.5rem;
+    background: rgba(255,255,255,0.9);
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid #000;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="message"></div>
+
+<script>
+const maze = [
+  [0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0],
+  [1,0,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1,0,1,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+  [0,1,1,1,0,1,1,1,1,0,1,1,1,0,1,1,1,1,1,0],
+  [0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0],
+  [0,1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0],
+  [0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0],
+  [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],
+  [1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0],
+  [0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0],
+  [1,0,1,0,1,1,0,1,0,0,0,1,0,1,1,0,1,0,1,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+  [0,1,1,1,0,1,1,1,1,0,1,1,1,0,1,1,1,1,1,0],
+  [0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0],
+  [0,1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0],
+  [0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0],
+  [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0]
+];
+
+const rows = maze.length;
+const cols = maze[0].length;
+const cellSize = 30;
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = cols * cellSize;
+canvas.height = rows * cellSize;
+
+let gameEnded = false;
+
+let player = {
+  row: 0,
+  col: 0,
+  x: 0,
+  y: 0,
+  speed: 6, 
+  moving: false,
+  targetRow: 0,
+  targetCol: 0
+};
+
+let enemy = {
+  row: rows - 1,
+  col: 0,
+  x: 0,
+  y: (rows - 1) * cellSize,
+  speed: 4,
+  moving: false,
+  targetRow: rows - 1,
+  targetCol: 0
+};
+
+let enemyPath = [];
+let lastPlayerPos = { row: player.row, col: player.col };
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for(let r = 0; r < rows; r++) {
+    for(let c = 0; c < cols; c++) {
+      ctx.fillStyle = maze[r][c] === 1 ? '#000' : '#fff';
+      ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+    }
+  }
+
+  ctx.fillStyle = 'green';
+  ctx.fillRect(exit.col * cellSize, exit.row * cellSize, cellSize, cellSize);
+
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(player.x, player.y, cellSize, cellSize);
+
+  ctx.fillStyle = 'red';
+  ctx.fillRect(enemy.x, enemy.y, cellSize, cellSize);
+}
+
+function findPathBFS(start, end) {
+  const queue = [start];
+  const visited = new Set();
+  const cameFrom = {};
+  const key = p => `${p.row},${p.col}`;
+  visited.add(key(start));
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current.row === end.row && current.col === end.col) {
+      const path = [];
+      let temp = current;
+      while (cameFrom[key(temp)]) {
+        path.unshift(temp);
+        temp = cameFrom[key(temp)];
+      }
+      return path;
+    }
+    const neighbors = [
+      {row: current.row-1, col: current.col},
+      {row: current.row+1, col: current.col},
+      {row: current.row, col: current.col-1},
+      {row: current.row, col: current.col+1}
+    ];
+    for(const n of neighbors) {
+      if (
+        n.row >= 0 && n.row < rows &&
+        n.col >= 0 && n.col < cols &&
+        maze[n.row][n.col] !== 1 &&
+        !visited.has(key(n))
+      ) {
+        visited.add(key(n));
+        cameFrom[key(n)] = current;
+        queue.push(n);
+      }
+    }
+  }
+  return [];
+}
+
+function updateEnemyPath() {
+  if(player.row !== lastPlayerPos.row || player.col !== lastPlayerPos.col) {
+    enemyPath = findPathBFS(enemy, player);
+    lastPlayerPos = {row: player.row, col: player.col};
+  }
+}
+
+function moveEntity(entity) {
+  if(!entity.moving) return;
+
+  const targetX = entity.targetCol * cellSize;
+  const targetY = entity.targetRow * cellSize;
+
+  const dx = targetX - entity.x;
+  const dy = targetY - entity.y;
+
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if(dist < entity.speed) {
+    entity.x = targetX;
+    entity.y = targetY;
+    entity.row = entity.targetRow;
+    entity.col = entity.targetCol;
+    entity.moving = false;
+  } else {
+    entity.x += entity.speed * dx / dist;
+    entity.y += entity.speed * dy / dist;
+  }
+}
+
+function showMessage(text) {
+  const msg = document.getElementById('message');
+  msg.textContent = text;
+  msg.style.display = 'block';
+}
+
+function checkGameOver() {
+  if (!gameEnded && player.row === enemy.row && player.col === enemy.col) {
+    gameEnded = true;
+    showMessage("💀 Game Over!");
+  }
+}
+
+function checkVictory() {
+  if (!gameEnded && player.row === exit.row && player.col === exit.col) {
+    gameEnded = true;
+    showMessage("🏆 Você venceu!");
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if(gameEnded) return;
+  if(player.moving) return; 
+
+  let newRow = player.row;
+  let newCol = player.col;
+
+  if(e.key === 'ArrowUp') newRow--;
+  else if(e.key === 'ArrowDown') newRow++;
+  else if(e.key === 'ArrowLeft') newCol--;
+  else if(e.key === 'ArrowRight') newCol++;
+  else return;
+
+  if(newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols && maze[newRow][newCol] !== 1) {
+    player.targetRow = newRow;
+    player.targetCol = newCol;
+    player.moving = true;
+  }
+});
+
+function enemyFollowPath() {
+  if(enemy.moving) return;
+
+  if(enemyPath.length === 0) return;
+
+  const next = enemyPath.shift();
+  enemy.targetRow = next.row;
+  enemy.targetCol = next.col;
+  enemy.moving = true;
+}
+
+function gameLoop() {
+  if(gameEnded) {
+    draw();
+    return;
+  }
+
+  moveEntity(player);
+  moveEntity(enemy);
+
+  if(!player.moving) {
+    checkVictory();
+    checkGameOver();
+  }
+
+  if(!enemy.moving) {
+    updateEnemyPath();
+    enemyFollowPath();
+  }
+
+  draw();
+
+  requestAnimationFrame(gameLoop);
+}
+
+player.x = player.col * cellSize;
+player.y = player.row * cellSize;
+enemy.x = enemy.col * cellSize;
+enemy.y = enemy.row * cellSize;
+
+const exit = { row: rows -1, col: cols -1 };
+
+updateEnemyPath();
+gameLoop();
+
+</script>
+</body>
+</html>
